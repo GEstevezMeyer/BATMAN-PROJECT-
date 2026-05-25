@@ -1,0 +1,19 @@
+[database]
+host = "localhost"
+port = 5432
+user = "batman"
+password = "batipassword"
+
+[dataset]
+mean = [ 0.5600155591964722, 0.5600155591964722, 0.5600155591964722,]
+std = [ 0.41777515411376953, 0.41777515411376953, 0.41777515411376953,]
+
+[training]
+batch_size = 32
+
+[model]
+dimention = 20
+filters_out = [16,32,64]
+kernel_size = [3,3,3]
+dense_out = [64,128]
+
