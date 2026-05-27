@@ -41,7 +41,6 @@ class SOCOFingDataset(Dataset):
 
         anchor = self.metadata.iloc[index]
 
-
         sub_positive_df = self.metadata[
             (self.metadata["label"] == anchor["label"]) &
             (self.metadata["path"] != anchor["path"])
@@ -54,13 +53,19 @@ class SOCOFingDataset(Dataset):
         positive = sub_positive_df.iloc[np.random.randint(0,n_positive)]
         negative = sub_negative_df.iloc[np.random.randint(0,n_negative)]
 
+        anchor_label = anchor["label"]
+        positive_label = anchor["label"]
+        negative_label = negative["label"]
+
         anchor = self._read_image(anchor["path"])
         positive = self._read_image(positive["path"])
         negative = self._read_image(negative["path"])
 
+        labels = (anchor_label,positive_label,negative_label)
+
     
 
-        return anchor,positive,negative
+        return anchor,positive,negative,labels
     
 
 def create_DataLoader(dataset:Dataset,config_path:str = "config.toml"): 

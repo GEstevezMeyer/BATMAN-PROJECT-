@@ -1,6 +1,10 @@
 import torch
 import torch.nn as nn
 from tqdm import tqdm
+import numpy as np 
+from sklearn.metrics import silhouette_score
+from sklearn.neighbors import NearestNeighbors
+
 from src.training.pipeline import main_pipeline
 from src.utils.config import named_action , import_config
 
@@ -87,8 +91,10 @@ def training_epoch_embedding(model, dataloader, optimizer, loss_function, device
 
     model.train()
     total_loss = 0.0
+    total_embeddings = []
+    total_labels = []
 
-    for anchor, positive, negative in tqdm(dataloader):
+    for anchor, positive, negative, labels in tqdm(dataloader):
 
         optimizer.zero_grad()
 
@@ -96,27 +102,76 @@ def training_epoch_embedding(model, dataloader, optimizer, loss_function, device
         positive = positive.to(device)
         negative = negative.to(device)
 
-        outputs = model(anchor, positive, negative)
+        anchor_emb, positive_emb, negative_emb = model(anchor, positive, negative)
+        anchor_label, positive_label, negative_label = labels 
 
-        loss = loss_function(*outputs)
-
+        loss = loss_function(anchor_emb,positive_emb,negative_emb)
+    
         loss.backward()
         optimizer.step()
 
         total_loss += loss.item()
+        total_embeddings.extend(anchor_emb.detach().cpu().numpy())
+        total_embeddings.extend(positive_emb.detach().cpu().numpy())
+        total_embeddings.extend(negative_emb.detach().cpu().numpy())
 
-    return total_loss
+        total_labels.extend(anchor_label)
+        total_labels.extend(positive_label)
+        total_labels.extend(negative_label)
+
+    total_embeddings = np.array(total_embeddings)
+    total_labels = np.array(total_labels)
+
+    silhouette = silhouette_score(total_embeddings,total_labels)
+    tolerance = compute_tolerance_metric(total_embeddings,total_labels)
+
+    return total_loss,silhouette,tolerance
+
+def compute_tolerance_metric(total_embeddings,total_labels,treshold_errors = 7): 
+    nn = NearestNeighbors(n_neighbors= 11)
+    nn.fit(total_embeddings)
+    
+    distances, indices = nn.kneighbors(total_embeddings)
+    correct = 0
+    n = len(total_embeddings)
+
+    for i in range(n): 
+        
+        nearest_neighbor = []
+        success = 1
+        current_errors = 0
+        j = 0
+
+        while (j <= 10) and success: 
+
+            nearest_neighbor = indices[i][j]
+
+            if total_labels[i] != total_labels[nearest_neighbor]:
+                current_errors+= 1
+            
+            if current_errors >= treshold_errors:
+                success = 0
+
+            j+= 1
+        
+        correct+= success 
+               
+    tolerance = correct/ n
+
+    return tolerance
+    
 
 def training_model(model, dataloader, optimizer, loss_function, device="cuda", epochs=10):
 
     model = model.to(device)
+    
 
     for i in range(epochs):
 
         print("-----------------")
         print(f"Epochs: {i}")
 
-        total_loss = training_epoch_embedding(
+        total_loss, silhouette, tolerance = training_epoch_embedding(
             model,
             dataloader,
             optimizer,
@@ -124,13 +179,13 @@ def training_model(model, dataloader, optimizer, loss_function, device="cuda", e
             device
         )
 
-        print(f"Total_loss: {total_loss}")
+        print(f"Total_loss: {total_loss} | silhouette score: {silhouette}| tolerance: {tolerance}")
         print("-----------------")
 
     return model
 
 
-def main_training(data_path = "DATA/SOCOFing/Real", config_path = "config.toml",epochs = 10): 
+def main_training(data_path = "DATA/SOCOFing/Real", config_path = "config.toml",epochs = 10):
     dataloader = main_pipeline(data_path=data_path)
     model = create_embedding_model(config_path=config_path)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
@@ -145,12 +200,3 @@ def main_training(data_path = "DATA/SOCOFing/Real", config_path = "config.toml",
 
 if __name__ == "__main__": 
     print(main_training()) 
-
-
-
-
-
-        
-
-if __name__ == "__main__": 
-    test = SOCOFIngEncoder(4)

@@ -12,7 +12,7 @@ std = [ 0.41777515411376953, 0.41777515411376953, 0.41777515411376953,]
 batch_size = 32
 
 [model]
-dimention = 20
+dimention = 224
 filters_out = [16,32,64]
 kernel_size = [3,3,3]
 dense_out = [64,128]
