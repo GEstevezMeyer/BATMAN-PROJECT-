@@ -56,6 +56,30 @@ def create_metadata(data_path:str) -> pd.DataFrame:
 
         return df
 
+def create_loading_metadata(data_path:str) -> pd.DataFrame: 
+    files = os.listdir(data_path)
+    inputs = []
+    labels = []
+    ids = []
+
+    for input in tqdm(files): 
+        label = input.split("__")
+        id = input.split(".")
+        
+        inputs.append(data_path+"/"+input)
+        labels.append(label[0])
+        ids.append(id[0])
+    
+
+    df = pd.DataFrame({
+        "ids": ids,
+        "path": inputs,            
+        "label": labels
+    })
+
+    return df
+     
+
 @named_action
 def compute_mean_std(data_path:str,toml_path:str = "config.toml"):
         
@@ -86,9 +110,16 @@ def compute_mean_std(data_path:str,toml_path:str = "config.toml"):
         dump_config(config,toml_path)
 
 
+def return_device():
+    device = os.environ.get("device_torch")
+
+    if device is None:
+        return "cpu"
+
+    return device
 
 
      
 
 if __name__ == "__main__": 
-     compute_mean_std("DATA/SOCOFing/Real")
+    print(create_loading_metadata("DATA/SOCOFing/Real").head())

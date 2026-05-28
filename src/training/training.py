@@ -4,9 +4,12 @@ from tqdm import tqdm
 import numpy as np 
 from sklearn.metrics import silhouette_score
 from sklearn.neighbors import NearestNeighbors
+import os 
 
 from src.training.pipeline import main_pipeline
-from src.utils.config import named_action , import_config
+from src.utils.config import named_action , import_config, return_device
+from src.utils.math_utils import normalize_vectors
+
 
 class SOCOFIngEncoder(nn.Module): 
     def __init__(self,dimention,filters_out = [16,32,64],kernel_size = [3,3,3],dense_out = [64,128]):
@@ -91,6 +94,7 @@ def training_epoch_embedding(model, dataloader, optimizer, loss_function, device
 
     model.train()
     total_loss = 0.0
+    normL2 = []
     total_embeddings = []
     total_labels = []
 
@@ -111,6 +115,8 @@ def training_epoch_embedding(model, dataloader, optimizer, loss_function, device
         optimizer.step()
 
         total_loss += loss.item()
+        normL2.append(loss.item()**2)
+
         total_embeddings.extend(anchor_emb.detach().cpu().numpy())
         total_embeddings.extend(positive_emb.detach().cpu().numpy())
         total_embeddings.extend(negative_emb.detach().cpu().numpy())
@@ -119,15 +125,24 @@ def training_epoch_embedding(model, dataloader, optimizer, loss_function, device
         total_labels.extend(positive_label)
         total_labels.extend(negative_label)
 
-    total_embeddings = np.array(total_embeddings)
+    normL2 = np.array(normL2)
+    normL2 = np.sqrt(np.sum(normL2)).item()
+
+    mean_loss = total_loss/len(dataloader)
+    total_loss = round(total_loss,3)
+
+
+    total_embeddings = normalize_vectors(np.array(total_embeddings))
     total_labels = np.array(total_labels)
 
     silhouette = silhouette_score(total_embeddings,total_labels)
     tolerance = compute_tolerance_metric(total_embeddings,total_labels)
+    recall = compute_recall(total_embeddings,total_labels)
 
-    return total_loss,silhouette,tolerance
+    return total_loss,normL2,mean_loss,silhouette,tolerance,recall
 
 def compute_tolerance_metric(total_embeddings,total_labels,treshold_errors = 7): 
+
     nn = NearestNeighbors(n_neighbors= 11)
     nn.fit(total_embeddings)
     
@@ -159,9 +174,31 @@ def compute_tolerance_metric(total_embeddings,total_labels,treshold_errors = 7):
     tolerance = correct/ n
 
     return tolerance
+
+ 
+
+def compute_recall(total_embeddings,total_labels):
+    
+    nn = NearestNeighbors(n_neighbors= 2)
+    nn.fit(total_embeddings)
+    
+    distances, indices = nn.kneighbors(total_embeddings)
+    correct = 0
+    n = len(total_embeddings)
+
+    for i in range(n):
+
+        neighbors = indices[i][1]
+
+        if total_labels[i] == total_labels[neighbors]:
+            correct+= 1
+
+    
+    return round(correct/n,3)
+
     
 
-def training_model(model, dataloader, optimizer, loss_function, device="cuda", epochs=10):
+def training_model(model, dataloader, optimizer, loss_function, schedulers = None, device="cuda", epochs=10):
 
     model = model.to(device)
     
@@ -171,7 +208,8 @@ def training_model(model, dataloader, optimizer, loss_function, device="cuda", e
         print("-----------------")
         print(f"Epochs: {i}")
 
-        total_loss, silhouette, tolerance = training_epoch_embedding(
+
+        total_loss,normL2,mean_loss, silhouette, tolerance, recall = training_epoch_embedding(
             model,
             dataloader,
             optimizer,
@@ -179,24 +217,35 @@ def training_model(model, dataloader, optimizer, loss_function, device="cuda", e
             device
         )
 
-        print(f"Total_loss: {total_loss} | silhouette score: {silhouette}| tolerance: {tolerance}")
+        if not(schedulers is None): 
+            schedulers.step()
+
+        print(f"Total_loss: {total_loss} | normL2: {normL2}| mean_loss: {mean_loss}")
+        print(f"silhouette score: {silhouette}| tolerance: {tolerance}| recall: {recall}")
         print("-----------------")
 
     return model
 
+   
 
-def main_training(data_path = "DATA/SOCOFing/Real", config_path = "config.toml",epochs = 10):
+def main_training(data_path = "DATA/SOCOFing/Real", config_path = "config.toml",epochs = 15,scheduler = True):
+    device = return_device()
     dataloader = main_pipeline(data_path=data_path)
     model = create_embedding_model(config_path=config_path)
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+    scheduler = None
 
-    loss_function = nn.TripletMarginLoss(margin=1.0,p=2)
-    trained_model = training_model(model,dataloader,optimizer,loss_function,epochs=epochs)
+    if scheduler:
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer,step_size=5,gamma= 0.5)
     
 
+    loss_function = nn.TripletMarginLoss(margin=1.0,p=2)
+    trained_model = training_model(model,dataloader,optimizer,loss_function,schedulers=scheduler,epochs=epochs,device=device)
+
+    
     return 0
 
 
 
 if __name__ == "__main__": 
-    print(main_training()) 
+    print(main_training(scheduler=False)) 
