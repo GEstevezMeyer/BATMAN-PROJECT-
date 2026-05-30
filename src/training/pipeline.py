@@ -76,12 +76,16 @@ def create_DataLoader(dataset:Dataset,config_path:str = "config.toml"):
 
 
 @named_action 
-def main_pipeline(data_path:str = "DATA/SOCOFing/Real"):
-
+def main_pipeline(data_path:str = "DATA/SOCOFing/Real",validation_data_path = "DATA/SOCOFing/Altered/Altered-Medium"):
     dataset = SOCOFingDataset(data_path)
+    dataset_validation = SOCOFingDataset(validation_data_path)
+    dataset_validation.metadata = dataset_validation.metadata.iloc[:len(dataset_validation)//4]
     dataloader = create_DataLoader(dataset)
+    dataloader_validation = create_DataLoader(dataset_validation)
+    
+    
 
-    return dataloader
+    return dataloader,dataloader_validation
 
 
 
