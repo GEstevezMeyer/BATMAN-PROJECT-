@@ -49,8 +49,7 @@ def training_epoch_embedding(model, dataloader, optimizer, loss_function, device
         negative = negative.to(device)
 
         anchor_emb, positive_emb, negative_emb = model(anchor, positive, negative)
-        anchor_label, positive_label, negative_label = labels 
-
+        
         loss = loss_function(anchor_emb,positive_emb,negative_emb)
     
         loss.backward()
@@ -59,13 +58,7 @@ def training_epoch_embedding(model, dataloader, optimizer, loss_function, device
         total_loss += loss.item()
         normL2.append(loss.item()**2)
 
-        total_embeddings.extend(anchor_emb.detach().cpu().numpy())
-        total_embeddings.extend(positive_emb.detach().cpu().numpy())
-        total_embeddings.extend(negative_emb.detach().cpu().numpy())
-
-        total_labels.extend(anchor_label)
-        total_labels.extend(positive_label)
-        total_labels.extend(negative_label)
+        
 
     normL2 = np.array(normL2)
     normL2 = np.sqrt(np.sum(normL2)).item()
@@ -74,14 +67,7 @@ def training_epoch_embedding(model, dataloader, optimizer, loss_function, device
     total_loss = round(total_loss,3)
 
 
-    total_embeddings = normalize_vectors(np.array(total_embeddings))
-    total_labels = np.array(total_labels)
-
-    silhouette = silhouette_score(total_embeddings,total_labels)
-    tolerance = compute_tolerance_metric(total_embeddings,total_labels)
-    recall = compute_recall(total_embeddings,total_labels)
-
-    return total_loss,normL2,mean_loss,silhouette,tolerance,recall
+    return total_loss,normL2,mean_loss
 
 
 def validation(model,dataloader,device = "cuda"):
@@ -194,7 +180,7 @@ def training_model(model, dataloader,dataloader_validation, optimizer, loss_func
         print(f"Epochs: {i}")
 
 
-        total_loss,normL2,mean_loss, silhouette, tolerance, recall = training_epoch_embedding(
+        total_loss,normL2,mean_loss = training_epoch_embedding(
             model,
             dataloader,
             optimizer,
@@ -204,10 +190,11 @@ def training_model(model, dataloader,dataloader_validation, optimizer, loss_func
 
         if not(schedulers is None): 
             schedulers.step()
+        print("------------Training---------------")
+        silhouette,tolerance,recall = validation(model,dataloader,device)
 
         print(f"Total_loss: {total_loss} | normL2: {normL2}| mean_loss: {mean_loss}")
         print(f"silhouette score: {silhouette}| tolerance: {tolerance}| recall: {recall}")
-        print("----------------------------")
 
         silhouette_validation, tolerance_validation, recall_validation = validation(model,dataloader_validation,device)
 
