@@ -51,7 +51,7 @@ def create_metadata(data_path:str) -> pd.DataFrame:
 
         df = pd.DataFrame({
             "path": inputs,
-            "label": labels
+            "labels": labels
         })
 
         return df

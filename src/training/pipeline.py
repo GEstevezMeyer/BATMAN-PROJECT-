@@ -7,6 +7,7 @@ from src.utils.config import import_config, create_metadata,named_action
 
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
+from pytorch_metric_learning import samplers
 
 
 
@@ -24,7 +25,11 @@ class SOCOFingDataset(Dataset):
         ])
         self.features_function = features_function
 
-    
+        self.paths = self.metadata["path"].tolist()
+        self.labels = self.metadata["labels"].astype("int").tolist()
+
+    def return_labels(self): 
+        return self.labels
     
     def _read_image(self,path:str): 
 
@@ -39,53 +44,38 @@ class SOCOFingDataset(Dataset):
     
     def __getitem__(self, index):
 
-        anchor = self.metadata.iloc[index]
+        path = self.paths[index]
+        label = self.labels[index]
 
-        sub_positive_df = self.metadata[
-            (self.metadata["label"] == anchor["label"]) &
-            (self.metadata["path"] != anchor["path"])
-        ]
-        sub_negative_df = self.metadata[self.metadata["label"] != anchor["label"]]
-
-        n_positive = len(sub_positive_df)
-        n_negative = len(sub_negative_df)
-
-        positive = sub_positive_df.iloc[np.random.randint(0,n_positive)]
-        negative = sub_negative_df.iloc[np.random.randint(0,n_negative)]
-
-        anchor_label = anchor["label"]
-        positive_label = anchor["label"]
-        negative_label = negative["label"]
-
-        anchor = self._read_image(anchor["path"])
-        positive = self._read_image(positive["path"])
-        negative = self._read_image(negative["path"])
-
-        labels = (anchor_label,positive_label,negative_label)
-
+        image = self._read_image(path)
+        
+        return image,label
     
-
-        return anchor,positive,negative,labels
     
-
-def create_DataLoader(dataset:Dataset,config_path:str = "config.toml"): 
+def create_TrainingDataLoader(dataset:Dataset,config_path:str = "config.toml"): 
     config = import_config(config_path)["training"]
-    dataLoader = DataLoader(dataset,config["batch_size"],shuffle = True)
+    sampler = samplers.MPerClassSampler(dataset.labels, m=4, batch_size=32)
+    dataLoader = DataLoader(dataset,config["batch_size"],sampler=sampler)
 
     return dataLoader
+
+def create_ValidationDataLoader(dataset:Dataset):
+    return DataLoader(dataset,64,shuffle=True)
 
 
 @named_action 
 def main_pipeline(data_path:str = "DATA/SOCOFing/Real",validation_data_path = "DATA/SOCOFing/Altered/Altered-Medium"):
     dataset = SOCOFingDataset(data_path)
     dataset_validation = SOCOFingDataset(validation_data_path)
-    dataset_validation.metadata = dataset_validation.metadata.iloc[:len(dataset_validation)//4]
-    dataloader = create_DataLoader(dataset)
-    dataloader_validation = create_DataLoader(dataset_validation)
+    
+    labels = dataset.labels
+    dataloader = create_TrainingDataLoader(dataset)
+    dataloader_evaluation = create_ValidationDataLoader(dataset)
+    dataloader_validation = create_ValidationDataLoader(dataset_validation)
     
     
 
-    return dataloader,dataloader_validation
+    return dataloader,dataloader_evaluation,dataloader_validation,labels 
 
 
 

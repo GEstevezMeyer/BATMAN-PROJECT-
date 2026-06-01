@@ -1,5 +1,6 @@
 import torch 
 import torch.nn as nn
+from pytorch_metric_learning import miners, losses, distances
 
 from tqdm import tqdm
 import numpy as np 
@@ -13,6 +14,7 @@ from src.utils.math_utils import normalize_vectors
 from src.training.models import *
 
 
+
 @named_action
 def create_embedding_model(config_path = "config.toml"):
 
@@ -23,16 +25,16 @@ def create_embedding_model(config_path = "config.toml"):
     if config_architecture["encoder"] == "soco":
         encoder = SOCOFIngEncoder(**config_model)
     elif config_architecture["encoder"] == "efn":
-        encoder = EfficientNetEncoder(config_model["dimention"])
+        encoder = EfficientNetEncoder(config_model["dimension"])
     
-    embedding_model = SOCOFingEmbedding(encoder)
+    
 
-    return embedding_model
-
-
+    return encoder
 
 
-def training_epoch_embedding(model, dataloader, optimizer, loss_function, device="cuda"):
+
+
+def training_epoch_embedding(model, dataloader, optimizer, loss_function,miner, device="cuda"):
 
     model.train()
     
@@ -41,17 +43,18 @@ def training_epoch_embedding(model, dataloader, optimizer, loss_function, device
     total_embeddings = []
     total_labels = []
 
-    for anchor, positive, negative, labels in tqdm(dataloader):
+    for images,labels in tqdm(dataloader):
 
         optimizer.zero_grad()
 
-        anchor = anchor.to(device)
-        positive = positive.to(device)
-        negative = negative.to(device)
+        images = images.to(device)
+        labels = labels.to(device)
 
-        anchor_emb, positive_emb, negative_emb = model(anchor, positive, negative)
-        
-        loss = loss_function(anchor_emb,positive_emb,negative_emb)
+        embeddings = model(images)
+        hard_pairs = miner(embeddings, labels)
+
+
+        loss = loss_function(embeddings, labels, hard_pairs)
     
         loss.backward()
         optimizer.step()
@@ -71,22 +74,19 @@ def training_epoch_embedding(model, dataloader, optimizer, loss_function, device
     return total_loss,normL2,mean_loss
 
 
-def validation(model,dataloader,dataloader_validation = None,device = "cuda"):
-    model.eval()
-    encoder = model.encoder 
+def validation(encoder,dataloader,dataloader_validation = None,device = "cuda"):
+    encoder.eval()
 
     total_embeddings = []
     total_labels = []
 
     with torch.no_grad():
-        for anchor, _, _, labels in tqdm(dataloader):
-            anchor = anchor.to(device)
-
-            outputs = encoder(anchor)
-            total_embeddings.extend(outputs.detach().cpu().numpy())
-
-            anchor_label,_, _ = labels 
-            total_labels.extend(anchor_label)
+        for images, labels in tqdm(dataloader):
+            images = images.to(device)
+            
+            embeddings = encoder(images)
+            total_embeddings.extend(embeddings.detach().cpu().numpy())
+            total_labels.extend(labels)
 
     total_embeddings = np.array(total_embeddings)
     total_labels = np.array(total_labels)
@@ -107,7 +107,7 @@ def compute_tolerance_metric(total_embeddings,total_labels,treshold_errors = 7):
     correct = 0
     n = len(total_embeddings)
 
-    for i in range(n): 
+    for i in tqdm(range(n)): 
         
         nearest_neighbor = []
         success = 1
@@ -143,17 +143,13 @@ def compute_recall(encoder,total_embeddings,dataloader_validation,total_labels,d
     total_n = 0
 
     with torch.no_grad():
-        for query, _, _, labels in dataloader_validation:
+        for query,query_labels in tqdm(dataloader_validation):
             query = query.to(device)
 
             query_embeddings = encoder(query)
             query_embeddings = (query_embeddings.detach().cpu().numpy())
             
-            query_labels,_,_ = labels 
-            query_labels = np.array(query_labels)
-
             neighbors,indices = nn.kneighbors(query_embeddings)
-            
             n = len(indices)
             
             for i in range(n): 
@@ -167,7 +163,8 @@ def compute_recall(encoder,total_embeddings,dataloader_validation,total_labels,d
 
     
 
-def training_model(model, dataloader,dataloader_validation, optimizer, loss_function, schedulers = None, device="cuda", epochs=10):
+def training_model(model, dataloader,dataloader_evaluation,dataloader_validation, optimizer, 
+                   loss_function,miner, device="cuda", epochs=10):
 
     model = model.to(device)
     
@@ -189,14 +186,14 @@ def training_model(model, dataloader,dataloader_validation, optimizer, loss_func
             model,
             dataloader,
             optimizer,
-            loss_function,
+            loss_function,miner,
             device
         )
 
-        if not(schedulers is None): 
-            schedulers.step()
+        
         print("------------Training---------------")
-        silhouette,tolerance,recall_validation= validation(model,dataloader,dataloader_validation,device=device)
+        silhouette,tolerance,recall_validation= validation(model,dataloader_evaluation,
+                                                           dataloader_validation,device=device)
 
         print(f"Total_loss: {total_loss} | normL2: {normL2}| mean_loss: {mean_loss}")
         print(f"silhouette score: {silhouette}| tolerance: {tolerance}")
@@ -234,27 +231,30 @@ def training_model(model, dataloader,dataloader_validation, optimizer, loss_func
 
    
 
-def main_training(data_path = "DATA/SOCOFing/Real", config_path = "config.toml",epochs = 10,scheduler = True):
+def main_training(data_path = "DATA/SOCOFing/Real", config_path = "config.toml",epochs = 10):
     device = return_device()
-    dataloader, dataloader_validation = main_pipeline(data_path=data_path)
+    dataloader,dataloader_evaluation,dataloader_validation,labels = main_pipeline(data_path=data_path)
     model = create_embedding_model(config_path=config_path)
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
-    scheduler = None
 
-    if scheduler:
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer,step_size=5,gamma= 0.5)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)   
+    distance = distances.CosineSimilarity()  
+    loss_function = losses.TripletMarginLoss(margin=0.2, distance=distance)
+    miner = miners.TripletMarginMiner(
+        margin=0.2,
+        distance=distance,
+        type_of_triplets="semihard"  
+    ) 
     
-
-    loss_function = nn.TripletMarginLoss(margin=1.0,p=2)
-    trained_model,history = training_model(model,dataloader,dataloader_validation,optimizer,loss_function,
-                                   schedulers=scheduler,epochs=epochs,device=device)
+    trained_model,history = training_model(model,dataloader,dataloader_evaluation,dataloader_validation,
+                                           optimizer,loss_function,miner,
+                                           epochs=epochs,device=device)
 
     
     return history
 
 
-#TODO try more metrics and organize this code 
+
 
 
 if __name__ == "__main__": 
-    print(main_training(scheduler=False,epochs=10)) 
+    print(main_training(epochs=5)) 
