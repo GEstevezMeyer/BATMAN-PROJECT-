@@ -35,6 +35,7 @@ def create_embedding_model(config_path = "config.toml"):
 def training_epoch_embedding(model, dataloader, optimizer, loss_function, device="cuda"):
 
     model.train()
+    
     total_loss = 0.0
     normL2 = []
     total_embeddings = []
@@ -70,36 +71,32 @@ def training_epoch_embedding(model, dataloader, optimizer, loss_function, device
     return total_loss,normL2,mean_loss
 
 
-def validation(model,dataloader,device = "cuda"):
+def validation(model,dataloader,dataloader_validation = None,device = "cuda"):
     model.eval()
+    encoder = model.encoder 
+
     total_embeddings = []
     total_labels = []
 
-    for anchor, positive, negative, labels in tqdm(dataloader):
+    with torch.no_grad():
+        for anchor, _, _, labels in tqdm(dataloader):
+            anchor = anchor.to(device)
 
-        anchor = anchor.to(device)
-        positive = positive.to(device)
-        negative = negative.to(device)
+            outputs = encoder(anchor)
+            total_embeddings.extend(outputs.detach().cpu().numpy())
 
-        anchor_emb, positive_emb, negative_emb = model(anchor, positive, negative)
-        anchor_label, positive_label, negative_label = labels 
+            anchor_label,_, _ = labels 
+            total_labels.extend(anchor_label)
 
-        total_embeddings.extend(anchor_emb.detach().cpu().numpy())
-        total_embeddings.extend(positive_emb.detach().cpu().numpy())
-        total_embeddings.extend(negative_emb.detach().cpu().numpy())
-
-        total_labels.extend(anchor_label)
-        total_labels.extend(positive_label)
-        total_labels.extend(negative_label)
-
-    total_embeddings = normalize_vectors(np.array(total_embeddings))
+    total_embeddings = np.array(total_embeddings)
     total_labels = np.array(total_labels)
 
     silhouette = silhouette_score(total_embeddings,total_labels)
     tolerance = compute_tolerance_metric(total_embeddings,total_labels)
-    recall = compute_recall(total_embeddings,total_labels)
+    recall = compute_recall(encoder,total_embeddings,dataloader_validation,total_labels,device=device)
 
     return silhouette,tolerance,recall
+
 
 def compute_tolerance_metric(total_embeddings,total_labels,treshold_errors = 7): 
 
@@ -137,24 +134,36 @@ def compute_tolerance_metric(total_embeddings,total_labels,treshold_errors = 7):
 
  
 
-def compute_recall(total_embeddings,total_labels):
+def compute_recall(encoder,total_embeddings,dataloader_validation,total_labels,device = "cuda"):
     
-    nn = NearestNeighbors(n_neighbors= 2)
+    nn = NearestNeighbors(n_neighbors= 1)
     nn.fit(total_embeddings)
     
-    distances, indices = nn.kneighbors(total_embeddings)
     correct = 0
-    n = len(total_embeddings)
+    total_n = 0
 
-    for i in range(n):
+    with torch.no_grad():
+        for query, _, _, labels in dataloader_validation:
+            query = query.to(device)
 
-        neighbors = indices[i][1]
+            query_embeddings = encoder(query)
+            query_embeddings = (query_embeddings.detach().cpu().numpy())
+            
+            query_labels,_,_ = labels 
+            query_labels = np.array(query_labels)
 
-        if total_labels[i] == total_labels[neighbors]:
-            correct+= 1
+            neighbors,indices = nn.kneighbors(query_embeddings)
+            
+            n = len(indices)
+            
+            for i in range(n): 
+                if total_labels[indices[i][0]] == query_labels[i]:
+                    correct+= 1
+
+            total_n+= n
 
     
-    return round(correct/n,3)
+    return round(correct/total_n,3)
 
     
 
@@ -167,11 +176,7 @@ def training_model(model, dataloader,dataloader_validation, optimizer, loss_func
     training_mean_loss = []
     training_silhouette = []
     training_tolerance = []
-    training_recall = []
 
-
-    validation_silhouette = []
-    validation_tolerance = []
     validation_recall = []
     
     for i in range(epochs):
@@ -191,15 +196,13 @@ def training_model(model, dataloader,dataloader_validation, optimizer, loss_func
         if not(schedulers is None): 
             schedulers.step()
         print("------------Training---------------")
-        silhouette,tolerance,recall = validation(model,dataloader,device)
+        silhouette,tolerance,recall_validation= validation(model,dataloader,dataloader_validation,device=device)
 
         print(f"Total_loss: {total_loss} | normL2: {normL2}| mean_loss: {mean_loss}")
-        print(f"silhouette score: {silhouette}| tolerance: {tolerance}| recall: {recall}")
+        print(f"silhouette score: {silhouette}| tolerance: {tolerance}")
 
-        silhouette_validation, tolerance_validation, recall_validation = validation(model,dataloader_validation,device)
-
-        print("--------Validation---------")
-        print(f"silhouette score: {silhouette_validation}| tolerance: {tolerance_validation}| recall: {recall_validation}")
+        print("------------Validation---------------")
+        print(f" recall: {recall_validation}")
         print("---------------------------")
 
         training_total_loss.append(total_loss)
@@ -207,15 +210,10 @@ def training_model(model, dataloader,dataloader_validation, optimizer, loss_func
         training_mean_loss.append(mean_loss)
         training_silhouette.append(silhouette)
         training_tolerance.append(tolerance)
-        training_recall.append(recall)
-
-        validation_silhouette.append(silhouette_validation)
-        validation_tolerance.append(tolerance_validation)
+        
         validation_recall.append(recall_validation)
 
         history_validation = {
-            "silhouette": validation_silhouette,
-            "tolerance": validation_tolerance,
             "recall": validation_recall
         }
 
@@ -225,12 +223,11 @@ def training_model(model, dataloader,dataloader_validation, optimizer, loss_func
             "mean_loss": training_mean_loss,
             "silhouette": training_silhouette,
             "tolerance": training_tolerance,
-            "recall": training_recall
         }
 
         history = {
             "training": history_training,
-            "validation": history_training
+            "validation": history_validation
         }
 
     return model,history
@@ -256,6 +253,8 @@ def main_training(data_path = "DATA/SOCOFing/Real", config_path = "config.toml",
     return history
 
 
+#TODO try more metrics and organize this code 
+
 
 if __name__ == "__main__": 
-    print(main_training(scheduler=False,epochs=1)) 
+    print(main_training(scheduler=False,epochs=10)) 

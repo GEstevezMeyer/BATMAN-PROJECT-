@@ -5,58 +5,45 @@ from torchvision.models import efficientnet_b0, EfficientNet_B0_Weights
 
 
 class SOCOFIngEncoder(nn.Module): 
-    def __init__(self,dimention,filters_out = [16,32,64],kernel_size = [3,3,3],dense_out = [64,128]):
+    def __init__(self, dimension, filters_out=[16,32,64], kernel_size=[3,3,3], dense_out=[64,128]):
         super().__init__()
-
-        self.filters_in = 3
-        self.dense_in = None
-
-        self.dense_out = dense_out
-        self.filters_out = filters_out
-        self.kernel_size = kernel_size
-
-        self.convLayers = self._create_conv_layers()
+        self.convLayers = self._create_conv_layers(filters_out, kernel_size)
         self.flatten = nn.Flatten()
-        self.denseLayers = None
-        self.encoder = nn.Linear(self.dense_out[-1],dimention)
+        
+        with torch.no_grad():
+            dummy = torch.zeros(1, 3, 224, 224)
+            flat_dim = self.flatten(self.convLayers(dummy)).shape[1]
+        
+        self.denseLayers = self._create_dense_layers(flat_dim, dense_out)
+        self.encoder = nn.Linear(dense_out[-1], dimension)
 
-    def _create_conv_layers(self):
+    def _create_conv_layers(self, filters_out, kernel_size):
         layers = []
-        for i in range(len(self.filters_out)):
-            padding = self.kernel_size[i]//2
-            layers.append(nn.Conv2d(self.filters_in,self.filters_out[i],
-                                    kernel_size=self.kernel_size[i],padding=padding))
-            layers.append(nn.ReLU())
-            layers.append(nn.MaxPool2d(3))
-            self.filters_in = self.filters_out[i]
-
-
+        filters_in = 3
+        for f_out, k in zip(filters_out, kernel_size):
+            padding = k // 2
+            layers += [
+                nn.Conv2d(filters_in, f_out, kernel_size=k, padding=padding),
+                nn.ReLU(),
+                nn.MaxPool2d(3)
+            ]
+            filters_in = f_out
         return nn.Sequential(*layers)
     
-    def _create_dense_layers(self): 
+    def _create_dense_layers(self, flat_dim, dense_out): 
         layers = []
-        for i in range(len(self.dense_out)):
-            layers.append(nn.Linear(self.dense_in,self.dense_out[i]))
-            layers.append(nn.ReLU())
-            self.dense_in = self.dense_out[i]
-
+        in_dim = flat_dim
+        for out_dim in dense_out:
+            layers += [nn.Linear(in_dim, out_dim), nn.ReLU()]
+            in_dim = out_dim
         return nn.Sequential(*layers)
     
-    def forward(self,input): 
-        x = self.convLayers(input)
+    def forward(self, x): 
+        x = self.convLayers(x)
         x = self.flatten(x)
-
-        if self.denseLayers is None: 
-            self.dense_in = x.shape[1]
-            self.denseLayers = self._create_dense_layers()
-            self.denseLayers = self.denseLayers.to("cuda")
-
         x = self.denseLayers(x)
         x = self.encoder(x)
-
-        x = nn.functional.normalize(x, p=2, dim=1)
-        
-        return x   
+        return nn.functional.normalize(x, p=2, dim=1) 
     
 
 class EfficientNetEncoder(nn.Module):
@@ -71,6 +58,7 @@ class EfficientNetEncoder(nn.Module):
         in_features = 1280
         self.embedding = nn.Sequential(
             nn.Linear(in_features, 512),
+            nn.BatchNorm1d(512),
             nn.ReLU(),
             nn.Dropout(0.2),
 
