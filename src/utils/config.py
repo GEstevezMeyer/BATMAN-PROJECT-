@@ -1,11 +1,12 @@
 import tomllib
 import toml
-
+import torch 
 import pandas as pd 
 from PIL import Image
 from torchvision import transforms
 from tqdm import tqdm
 import os 
+import json 
 
 
 def named_action(func):
@@ -118,8 +119,27 @@ def return_device():
 
     return device
 
-
+@named_action
+def dump_history(history,res_path:str = "res/history.json"):
+     with open(res_path,"w") as f:
+          json.dump(history,f,indent=4)
      
+def import_history(res_path:str = "res/history.json"): 
+    with open(res_path,"rb") as f : 
+        history = json.load(f)
+
+    return history
+
+@named_action
+def save_model_weights(model, res_path="res"):
+    torch.save(model.state_dict(), f"{res_path}/model.pth")
+
+
+def load_model(architecture, model_weights_path="res/model.pth"):
+    architecture.load_state_dict(torch.load(model_weights_path))
+
+    return architecture
+    
 
 if __name__ == "__main__": 
-    print(create_loading_metadata("DATA/SOCOFing/Real").head())
+    print(import_history())

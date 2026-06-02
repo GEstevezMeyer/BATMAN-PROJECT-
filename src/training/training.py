@@ -1,16 +1,14 @@
 import torch 
-import torch.nn as nn
 from pytorch_metric_learning import miners, losses, distances
 
 from tqdm import tqdm
 import numpy as np 
 from sklearn.metrics import silhouette_score
 from sklearn.neighbors import NearestNeighbors
-import os 
+
 
 from src.training.pipeline import main_pipeline
-from src.utils.config import named_action , import_config, return_device
-from src.utils.math_utils import normalize_vectors
+from src.utils.config import named_action , import_config, return_device, dump_history,save_model_weights
 from src.training.models import *
 
 
@@ -231,7 +229,8 @@ def training_model(model, dataloader,dataloader_evaluation,dataloader_validation
 
    
 
-def main_training(data_path = "DATA/SOCOFing/Real", config_path = "config.toml",epochs = 10):
+def main_training(data_path = "DATA/SOCOFing/Real", config_path = "config.toml",
+                  res_path = "res/history.json",epochs = 10):
     device = return_device()
     dataloader,dataloader_evaluation,dataloader_validation,labels = main_pipeline(data_path=data_path)
     model = create_embedding_model(config_path=config_path)
@@ -250,11 +249,15 @@ def main_training(data_path = "DATA/SOCOFing/Real", config_path = "config.toml",
                                            epochs=epochs,device=device)
 
     
-    return history
+    dump_history(history,res_path=res_path)
+    save_model_weights(trained_model)
+    
+
+    return 0
 
 
 
 
 
 if __name__ == "__main__": 
-    print(main_training(epochs=5)) 
+    print(main_training(epochs=15)) 
