@@ -123,7 +123,8 @@ def return_device():
 def dump_history(history,res_path:str = "res/history.json"):
      with open(res_path,"w") as f:
           json.dump(history,f,indent=4)
-     
+
+@named_action  
 def import_history(res_path:str = "res/history.json"): 
     with open(res_path,"rb") as f : 
         history = json.load(f)
@@ -134,9 +135,9 @@ def import_history(res_path:str = "res/history.json"):
 def save_model_weights(model, res_path="res"):
     torch.save(model.state_dict(), f"{res_path}/model.pth")
 
-
+@named_action
 def load_model(architecture, model_weights_path="res/model.pth"):
-    architecture.load_state_dict(torch.load(model_weights_path))
+    architecture.load_state_dict(torch.load(model_weights_path,weights_only= True))
 
     return architecture
     

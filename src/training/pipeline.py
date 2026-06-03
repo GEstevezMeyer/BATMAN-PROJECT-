@@ -68,14 +68,13 @@ def main_pipeline(data_path:str = "DATA/SOCOFing/Real",validation_data_path = "D
     dataset = SOCOFingDataset(data_path)
     dataset_validation = SOCOFingDataset(validation_data_path)
     
-    labels = dataset.labels
     dataloader = create_TrainingDataLoader(dataset)
     dataloader_evaluation = create_ValidationDataLoader(dataset)
     dataloader_validation = create_ValidationDataLoader(dataset_validation)
     
     
 
-    return dataloader,dataloader_evaluation,dataloader_validation,labels 
+    return dataloader,dataloader_evaluation,dataloader_validation
 
 
 

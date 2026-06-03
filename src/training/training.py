@@ -232,7 +232,7 @@ def training_model(model, dataloader,dataloader_evaluation,dataloader_validation
 def main_training(data_path = "DATA/SOCOFing/Real", config_path = "config.toml",
                   res_path = "res/history.json",epochs = 10):
     device = return_device()
-    dataloader,dataloader_evaluation,dataloader_validation,labels = main_pipeline(data_path=data_path)
+    dataloader,dataloader_evaluation,dataloader_validation = main_pipeline(data_path=data_path)
     model = create_embedding_model(config_path=config_path)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)   
