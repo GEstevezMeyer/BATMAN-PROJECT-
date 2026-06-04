@@ -79,7 +79,7 @@ def validation(encoder,dataloader,dataloader_validation = None,device = "cuda"):
     total_labels = []
 
     with torch.no_grad():
-        for images, labels in tqdm(dataloader):
+        for images, labels in tqdm(dataloader, desc= "Transforming training dataset into embeddings"):
             images = images.to(device)
             
             embeddings = encoder(images)
@@ -96,7 +96,7 @@ def validation(encoder,dataloader,dataloader_validation = None,device = "cuda"):
     return silhouette,tolerance,recall
 
 
-def compute_tolerance_metric(total_embeddings,total_labels,treshold_errors = 7): 
+def compute_tolerance_metric(total_embeddings,total_labels,treshold_errors = 4): 
 
     nn = NearestNeighbors(n_neighbors= 11)
     nn.fit(total_embeddings)
@@ -105,7 +105,7 @@ def compute_tolerance_metric(total_embeddings,total_labels,treshold_errors = 7):
     correct = 0
     n = len(total_embeddings)
 
-    for i in tqdm(range(n)): 
+    for i in tqdm(range(n),desc="Computing tolerance metric"): 
         
         nearest_neighbor = []
         success = 1
@@ -141,7 +141,7 @@ def compute_recall(encoder,total_embeddings,dataloader_validation,total_labels,d
     total_n = 0
 
     with torch.no_grad():
-        for query,query_labels in tqdm(dataloader_validation):
+        for query,query_labels in tqdm(dataloader_validation,desc= "Computing recall metric"):
             query = query.to(device)
 
             query_embeddings = encoder(query)

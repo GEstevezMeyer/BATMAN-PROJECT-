@@ -75,7 +75,7 @@ def create_loading_metadata(data_path:str) -> pd.DataFrame:
     df = pd.DataFrame({
         "ids": ids,
         "path": inputs,            
-        "label": labels
+        "labels": labels
     })
 
     return df

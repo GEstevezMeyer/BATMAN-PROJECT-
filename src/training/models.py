@@ -48,7 +48,7 @@ class SOCOFIngEncoder(nn.Module):
 
 class EfficientNetEncoder(nn.Module):
 
-    def __init__(self, embedding_dim=128):
+    def __init__(self, embedding_dim=224):
         super().__init__()
         backbone = efficientnet_b0(
             weights=EfficientNet_B0_Weights.DEFAULT

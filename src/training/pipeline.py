@@ -14,7 +14,7 @@ from pytorch_metric_learning import samplers
 class SOCOFingDataset(Dataset): 
     def __init__(self,data_path,mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225], 
                 features_function = lambda x: x, augmentation_transform = None): 
-        self.metadata = create_metadata(data_path)
+        self._metadata = create_metadata(data_path)
 
         if augmentation_transform is None: 
             augmentation_transform = []
@@ -25,8 +25,18 @@ class SOCOFingDataset(Dataset):
         ])
         self.features_function = features_function
 
-        self.paths = self.metadata["path"].tolist()
-        self.labels = self.metadata["labels"].astype("int").tolist()
+        self.paths = self._metadata["path"].tolist()
+        self.labels = self._metadata["labels"].astype("int").tolist()
+
+    @property
+    def metadata(self):
+        return self._metadata
+    
+    @metadata.setter
+    def metadata(self,new_metadata:pd.DataFrame):
+        self._metadata = new_metadata
+        self.paths = self._metadata["path"].tolist()
+        self.labels = self._metadata["labels"].astype("int").tolist()
 
     def return_labels(self): 
         return self.labels

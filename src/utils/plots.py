@@ -6,7 +6,7 @@ from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from tqdm import tqdm
 import torch
-
+from src.etl.transform import transform_data
 
 
 def plot_metrics(history: dict):
@@ -33,23 +33,9 @@ def plot_metrics(history: dict):
     plt.show()
         
 def plot_pca(encoder,dataloader,device = "cuda"):
-    total_labels = []
-    total_embeddings = []
     pca = PCA(n_components=3)
-
-    encoder = encoder.to(device)
-    encoder.eval()
-    with torch.no_grad() : 
-        for images,labels in tqdm(dataloader):
-            images = images.to(device)
-
-            embeddings = encoder(images)
-            total_embeddings.extend(embeddings.detach().cpu().numpy())
-            total_labels.extend(labels)
-
-    total_embeddings = np.array(total_embeddings)
-    total_labels = np.array(total_labels)
-
+    total_embeddings,total_labels = transform_data(encoder=encoder,dataloader=dataloader,device=device)
+    
     total_embeddings = pca.fit_transform(total_embeddings)
 
     fig = go.Figure(data=[go.Scatter3d(
@@ -72,22 +58,9 @@ def plot_pca(encoder,dataloader,device = "cuda"):
 
 
 def plot_tsne(encoder,dataloader,device = "cuda"):
-    total_labels = []
-    total_embeddings = []
     tsnee = TSNE(n_components=3)
 
-    encoder = encoder.to(device)
-    encoder.eval()
-    with torch.no_grad() : 
-        for images,labels in tqdm(dataloader):
-            images = images.to(device)
-
-            embeddings = encoder(images)
-            total_embeddings.extend(embeddings.detach().cpu().numpy())
-            total_labels.extend(labels)
-
-    total_embeddings = np.array(total_embeddings)
-    total_labels = np.array(total_labels)
+    total_embeddings,total_labels = transform_data(encoder=encoder,dataloader=dataloader,device=device)
 
     total_embeddings = tsnee.fit_transform(total_embeddings)
 
