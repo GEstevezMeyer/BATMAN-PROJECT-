@@ -82,3 +82,30 @@ def plot_tsne(encoder,dataloader,device = "cuda"):
     fig.show()
 
 
+def plot_qdrant_embeddings(embeddings,labels,method = PCA): 
+    visualizer = method(n_components = 3)
+
+    embeddings = visualizer.fit_transform(embeddings)
+
+    fig = go.Figure(data=[go.Scatter3d(
+        x=embeddings[:, 0],
+        y=embeddings[:, 1],
+        z=embeddings[:, 2],
+        mode='markers',
+        marker=dict(
+            size=4,
+            color=labels,
+            colorscale='Viridis',
+            showscale=True
+        ),
+        text=labels  
+    )])
+
+    fig.update_layout(title=f"Embeddings")
+    
+    graph_html = fig.to_html(
+        full_html=False,
+        include_plotlyjs="cdn"
+    )
+
+    return graph_html

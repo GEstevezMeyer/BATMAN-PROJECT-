@@ -1,7 +1,7 @@
 from src.utils.config import create_loading_metadata,import_config
 from src.training.pipeline import SOCOFingDataset,create_ValidationDataLoader
 from torchvision import transforms
-
+from qdrant_client import QdrantClient
 
 class LoadingDataset(SOCOFingDataset):
     def __init__(self, *args, **kwargs):
@@ -44,6 +44,8 @@ def read_image(image,config_path = "config.toml"):
         ])
 
     return transform(image)
+
+
 
 if __name__ == "__main__": 
     print(load_data())

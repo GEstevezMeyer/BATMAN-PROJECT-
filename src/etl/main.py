@@ -26,7 +26,7 @@ def main(collection_name,data_path = "DATA/SOCOFing/Real",config_path = "config.
 
     total_ids, total_embeddings, total_labels = transform_loading_data(encoder,dataloader)
 
-    client = QdrantClient(path=embeddings_database)
+    client = QdrantClient(host="localhost",port ="6333")
     
     client.create_collection(collection_name=collection_name,
                              vectors_config=VectorParams(size = config_model["dimension"], distance= Distance.COSINE))
@@ -41,5 +41,4 @@ def main(collection_name,data_path = "DATA/SOCOFing/Real",config_path = "config.
 # TODO create the relation of the labels with the actual name of the "subjects" and make test of the database
 
 if __name__ == "__main__": 
-    shutil.rmtree("./embeddings_database")
     print(main("test1"))
