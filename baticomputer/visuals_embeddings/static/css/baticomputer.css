@@ -1,0 +1,140 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+:root {
+    --bat-black:      #000d1a;
+    --bat-darknavy:   #001428;
+    --bat-navy:       #003366;
+    --bat-blue:       #0055aa;
+    --bat-lightblue:  #00aaff;
+    --bat-cyan:       #00eeff;
+    --bat-axisblue:   #003d7a;
+    --bat-font:       'Share Tech Mono', monospace;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: var(--bat-black);
+    color: var(--bat-cyan);
+    font-family: var(--bat-font);
+    min-height: 100vh;
+}
+
+/* ── Header ── */
+h1 {
+    text-align: center;
+    padding: 24px;
+    font-size: 1.6rem;
+    letter-spacing: 0.2em;
+    color: var(--bat-cyan);
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--bat-navy);
+}
+
+h1::before { content: "[ "; }
+h1::after  { content: " ]"; }
+
+/* ── Dashboard container ── */
+.dashboard {
+    max-width: 1200px;
+    margin: 40px auto;
+    padding: 0 24px;
+}
+
+/* ── Panel / card ── */
+.panel {
+    background-color: var(--bat-darknavy);
+    border: 1px solid var(--bat-navy);
+    border-radius: 4px;
+    padding: 24px;
+    margin-bottom: 24px;
+}
+
+.panel-title {
+    font-size: 0.75rem;
+    letter-spacing: 0.15em;
+    color: var(--bat-axisblue);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar       { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bat-black); }
+::-webkit-scrollbar-thumb { background: var(--bat-navy); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--bat-blue); }
+
+/* ── Plotly graph wrapper ── */
+.graph-wrapper {
+    border: 1px solid var(--bat-navy);
+    border-radius: 4px;
+    overflow: hidden;
+    background-color: var(--bat-black);
+}
+
+
+/* Upload form */
+.upload-area {
+    border: 1px dashed var(--bat-navy);
+    border-radius: 4px;
+    padding: 32px;
+    text-align: center;
+    margin-bottom: 16px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.upload-area:hover {
+    border-color: var(--bat-lightblue);
+}
+
+#file-input {
+    display: none;
+}
+
+.upload-label {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.upload-icon {
+    font-size: 1.4rem;
+    color: var(--bat-lightblue);
+}
+
+.upload-text {
+    color: var(--bat-cyan);
+    letter-spacing: 0.15em;
+    font-size: 0.85rem;
+}
+
+.upload-sub {
+    color: var(--bat-axisblue);
+    font-size: 0.75rem;
+}
+
+/* Button */
+.bat-button {
+    width: 100%;
+    padding: 12px;
+    background: transparent;
+    border: 1px solid var(--bat-navy);
+    color: var(--bat-cyan);
+    font-family: var(--bat-font);
+    font-size: 0.85rem;
+    letter-spacing: 0.2em;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+}
+
+.bat-button:hover {
+    border-color: var(--bat-lightblue);
+    color: var(--bat-lightblue);
+}

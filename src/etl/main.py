@@ -38,7 +38,6 @@ def main(collection_name,data_path = "DATA/SOCOFing/Real",config_path = "config.
     
 
 
-# TODO create the relation of the labels with the actual name of the "subjects" and make test of the database
 
 if __name__ == "__main__": 
     print(main("test1"))

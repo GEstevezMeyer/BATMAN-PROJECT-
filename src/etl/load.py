@@ -33,17 +33,6 @@ def load_data(data_path:str = "DATA/SOCOFing/Real",config_path:str = "config.tom
 
     return dataloader
 
-def read_image(image,config_path = "config.toml"):
-
-    config = import_config(config_path)
-    config_dataset = config["dataset"]
-
-    transform = transforms.Compose([transforms.Resize((224,224)),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=config_dataset["mean"],std= config_dataset["std"])
-        ])
-
-    return transform(image)
 
 
 

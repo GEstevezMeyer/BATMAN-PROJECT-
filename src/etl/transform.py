@@ -54,16 +54,7 @@ def transform_loading_data(encoder,dataloader):
         return total_ids,total_embeddings, total_labels
     
 
-def transform_image(encoder,image):
-    device = return_device()
 
-    encoder.to(device)
-    encoder.eval()
-    with torch.no_grad():
-        image = image.to(device)
-        embedding = encoder(image)
-
-    return embedding
 
 
 if __name__ == "__main__": 
