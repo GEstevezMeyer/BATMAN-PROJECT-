@@ -9,6 +9,7 @@ from docker.errors import NotFound,APIError
 from .models_ai.architecture import EfficientNetEncoder,load_model
 from .models_ai.inference import read_image,transform_image
 
+import mysql.connector
 import httpx
 import os 
 
@@ -37,6 +38,26 @@ def check_container(container_id:str) -> bool:
     except APIError as e:
         return False
     
+def connect_sql():
+    load_dotenv()
+    HOST_DB = os.getenv("HOST_DB")
+    PORT_DB = os.getenv("PORT_DB")
+    USER = os.getenv("USER")
+    PASSWORD = os.getenv("PASSWORD")
+    DATABASE = os.getenv("DATABASE")
+
+    config = {
+        "user": USER,
+        "password": PASSWORD,
+        "port": int(PORT_DB),
+        "host": HOST_DB,
+        "database": DATABASE
+    }
+
+
+    link = mysql.connector.connect(**config)
+
+    return link
 
 def connect_qdrant() -> QdrantClient:
     load_dotenv()
@@ -186,6 +207,8 @@ def plot_qdrant_embeddings(embeddings, labels, method=PCA, highlight_label=None)
 def home(request): 
 
     client = connect_qdrant()
+    link = connect_sql()
+
     graph_html = None
     inference = None
 
