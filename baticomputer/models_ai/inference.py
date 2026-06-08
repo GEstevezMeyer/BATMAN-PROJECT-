@@ -33,7 +33,7 @@ def transform_image(encoder,image,device = "cuda"):
         image = image.to(device)
         embedding = encoder(image)
 
-    return embedding
+    return embedding.cpu().numpy().squeeze().tolist()
 
 
 

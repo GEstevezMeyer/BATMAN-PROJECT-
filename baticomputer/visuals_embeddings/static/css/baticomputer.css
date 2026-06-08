@@ -138,3 +138,37 @@ h1::after  { content: " ]"; }
     border-color: var(--bat-lightblue);
     color: var(--bat-lightblue);
 }
+
+/* ── Table ── */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--bat-navy);
+    letter-spacing: 0.05em;
+}
+
+tr:last-child td {
+    border-bottom: none;
+}
+
+tr:hover td {
+    background-color: var(--bat-navy);
+    color: var(--bat-lightblue);
+}
+
+td:first-child {
+    color: var(--bat-axisblue);
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.15em;
+    width: 40%;
+}
+
+td:last-child {
+    color: var(--bat-cyan);
+}

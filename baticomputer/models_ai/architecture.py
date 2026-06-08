@@ -1,3 +1,4 @@
+import os 
 import torch
 import torch.nn as nn
 from torchvision.models import efficientnet_b0, EfficientNet_B0_Weights
@@ -33,7 +34,10 @@ class EfficientNetEncoder(nn.Module):
         return x
     
 
-def load_model(architecture, model_weights_path):
+def load_model(architecture = EfficientNetEncoder(embedding_dim= 224)):
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    model_weights_path = os.path.join(base_dir, "model.pth")
+     
     architecture.load_state_dict(torch.load(model_weights_path,weights_only= True))
 
     return architecture
